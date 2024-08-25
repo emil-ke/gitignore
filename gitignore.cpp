@@ -70,6 +70,8 @@ int main(int argc, char *argv[]) {
   }
   const std::string argFileAbsolutePos = currentdir + '/' + argv[1];
   while (true) {
+    // if directory traversal fails, for some reason, this could loop
+    // indefinitely--change, maybe
     if (IsGitInDir(currentdir)) {
       std::string gitignorePath = currentdir + "/.gitignore";
       std::string relativePath =
