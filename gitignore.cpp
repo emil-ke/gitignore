@@ -2,8 +2,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <set>
 #include <unistd.h>
+#include <unordered_set>
 #include <vector>
 
 void printError(const std::string &msg) {
@@ -24,13 +24,17 @@ bool isGitFolderInDir(const std::string &path) {
 }
 
 void writeToFile(const std::string &path, const std::string &msg) {
-  std::set<std::string> lines;
   std::ifstream infile(path);
+  std::unordered_set<std::string> lines;
   std::string line;
+  bool found = false;
   while (std::getline(infile, line)) {
-    lines.insert(line);
+    if (line == msg) {
+      found = true;
+      break;
+    }
   }
-  if (lines.find(msg) != lines.end()) {
+  if (found) {
     std::cout << msg << " is already in " << path << std::endl;
     return;
   }
@@ -66,27 +70,8 @@ std::string askUserForChoice(const std::vector<std::string> &choices,
   return choices[choice - 1];
 }
 
-int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    printError("usage: gitignore path/to/file/to/ignore");
-    return -1;
-  }
-  std::string current_directory = getWorkingDirectory();
-  if (current_directory.empty()) {
-    return -1;
-  }
-  const std::string arg_abs_path = current_directory + '/' + argv[1];
-  if (std::filesystem::exists(arg_abs_path) == false) {
-    printError(arg_abs_path + " does not exist");
-    return -1;
-  }
-  if (isGitFolderInDir(current_directory)) {
-    std::string gitignore_file_path = current_directory + "/.gitignore";
-    std::string relativePath = getRelativePath(current_directory, arg_abs_path);
-    writeToFile(gitignore_file_path, relativePath);
-    return 0; // return instantly if .git in current directory
-  }
-  int parent_traversal_limit = 50;
+std::string findGitDirectory(std::string &current_directory) {
+  int parent_traversal_limit = 50; // TODO maybe add flag to change?
   std::vector<std::string> git_dirs;
   while (parent_traversal_limit--) {
     if (isGitFolderInDir(current_directory)) {
@@ -100,16 +85,41 @@ int main(int argc, char *argv[]) {
   }
   if (git_dirs.empty()) {
     printError("no .git directory found in any parent directory");
+    return "";
+  }
+  if (git_dirs.size() == 1) {
+    return git_dirs[0];
+  }
+  return askUserForChoice(git_dirs, "Select the .git directory to add to: ");
+}
+
+int main(int argc, char *argv[]) {
+  if (argc != 2) {
+    printError("usage: gitignore path/to/file/to/ignore");
     return -1;
   }
-  std::string chosen_git_dir = askUserForChoice(
-      git_dirs, "Select the .git directory to add the file to:");
-  if (chosen_git_dir.empty()) {
-    printError("no directory selected");
+  std::string current_directory = getWorkingDirectory();
+  if (current_directory.empty()) {
     return -1;
+  }
+  std::string arg_abs_path = std::filesystem::path(current_directory) / argv[1];
+  if (!std::filesystem::exists(arg_abs_path)) {
+    printError(arg_abs_path + " does not exist");
+    return -1;
+  }
+  if (isGitFolderInDir(current_directory)) {
+    std::string gitignore_file_path = current_directory + "/.gitignore";
+    std::string relative_path =
+        getRelativePath(current_directory, arg_abs_path);
+    writeToFile(gitignore_file_path, relative_path);
+    return 0;
+  }
+  std::string chosen_git_dir = findGitDirectory(current_directory);
+  if (chosen_git_dir.empty()) {
+    return -1; // Error message already printed in findGitDirectory
   }
   std::string gitignore_file_path = chosen_git_dir + "/.gitignore";
-  std::string relativePath = getRelativePath(chosen_git_dir, arg_abs_path);
-  writeToFile(gitignore_file_path, relativePath);
+  std::string relative_path = getRelativePath(chosen_git_dir, arg_abs_path);
+  writeToFile(gitignore_file_path, relative_path);
   return 0;
 }
