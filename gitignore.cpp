@@ -23,7 +23,10 @@ bool isGitFolderInDir(const std::string &path) {
   return std::filesystem::is_directory(path + "/.git");
 }
 
-void writeToFile(const std::string &path, const std::string &msg) {
+void writeToFile(const std::string &path, std::string &msg) {
+  if (std::filesystem::is_directory(msg) && msg.back() != '/') {
+    msg += "/"; // for correct formatting inside .gitignore
+  }
   std::ifstream infile(path);
   std::unordered_set<std::string> lines;
   std::string line;
@@ -95,7 +98,7 @@ std::string findGitDirectory(std::string &current_directory) {
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
-    printError("usage: gitignore path/to/file/to/ignore");
+    printError("usage: $ gitignore path/to/thing/to/ignore");
     return -1;
   }
   std::string current_directory = getWorkingDirectory();
