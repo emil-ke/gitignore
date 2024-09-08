@@ -2,21 +2,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <unistd.h>
 #include <unordered_set>
 #include <vector>
 
 void printError(const std::string &msg) {
   std::cerr << "\033[1;31merror\033[0m\t" << msg << std::endl;
-}
-
-std::string getWorkingDirectory() {
-  char buf[PATH_MAX];
-  if (getcwd(buf, sizeof(buf)) == nullptr) {
-    perror("getcwd");
-    return "";
-  }
-  return std::string(buf);
 }
 
 bool isGitFolderInDir(const std::string &path) {
@@ -33,18 +23,19 @@ void writeToFile(const std::string &path, std::string &msg) {
         printError("could not open " + path);
         return;
     }
-
     // read file to an unordered_set for fast lookup
     std::unordered_set<std::string> lines;
     std::string line;
     while (std::getline(file, line)) {
         lines.insert(line);
     }
-    if (lines.find(msg) != lines.end()) {
+    for (auto &line : lines) {
+      if (line == msg) {
         std::cout << msg << " is already in " << path << std::endl;
         return;
     }
-    file.clear(); // clear err flags
+  }
+    file.clear(); // clear error flags
     file.seekp(0, std::ios::end); // move the write pointer to the end
     file << msg << std::endl;
     std::cout << "Added " << msg << " to " << path << std::endl;
@@ -74,7 +65,10 @@ std::string askUserForChoice(const std::vector<std::string> &choices,
 }
 
 std::string findGitDirectory(std::string &current_directory) {
-  int parent_traversal_limit = 50; // TODO maybe add flag to change?
+  // TODO (?) maybe add flag to change to some other depth.
+  // Highly unlikely that user would be more than 60 directories deep though.
+  int parent_traversal_limit = 60;
+
   std::vector<std::string> git_dirs;
   while (parent_traversal_limit--) {
     if (isGitFolderInDir(current_directory)) {
@@ -101,7 +95,7 @@ int main(int argc, char *argv[]) {
     printError("usage: $ gitignore path/to/thing/to/ignore");
     return -1;
   }
-  std::string current_directory = getWorkingDirectory();
+  std::string current_directory = std::filesystem::current_path().string();
   if (current_directory.empty()) {
     return -1;
   }
