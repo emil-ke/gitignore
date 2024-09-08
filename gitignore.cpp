@@ -14,7 +14,7 @@ bool isGitFolderInDir(const std::string &path) {
 }
 
 void writeToFile(const std::string &path, std::string &msg) {
-    // modify 'msg' directly if it's a directory
+    // modify 'msg' directly if it's a directory this is why msg is mutable
     if (std::filesystem::is_directory(msg) && msg.back() != '/') {
         msg += "/";
     }
@@ -36,7 +36,6 @@ void writeToFile(const std::string &path, std::string &msg) {
     }
   }
     file.clear(); // clear error flags
-    file.seekp(0, std::ios::end); // move the write pointer to the end
     file << msg << std::endl;
     std::cout << "Added " << msg << " to " << path << std::endl;
 }
@@ -99,7 +98,8 @@ int main(int argc, char *argv[]) {
   if (current_directory.empty()) {
     return -1;
   }
-  std::string arg_abs_path = std::filesystem::path(current_directory) / argv[1];
+  std::string arg_path = argv[1];
+  std::string arg_abs_path = std::filesystem::absolute(arg_path).string();
   if (!std::filesystem::exists(arg_abs_path)) {
     printError(arg_abs_path + " does not exist");
     return -1;
