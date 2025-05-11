@@ -14,30 +14,30 @@ bool isGitFolderInDir(const std::string &path) {
 }
 
 void writeToFile(const std::string &path, std::string &msg) {
-    // modify 'msg' directly if it's a directory this is why msg is mutable
-    if (std::filesystem::is_directory(msg) && msg.back() != '/') {
-        msg += "/";
-    }
-    std::fstream file(path, std::ios::in | std::ios::out | std::ios::app);
-    if (!file) {
-        printError("could not open " + path);
-        return;
-    }
-    // read file to an unordered_set for fast lookup
-    std::unordered_set<std::string> lines;
-    std::string line;
-    while (std::getline(file, line)) {
-        lines.insert(line);
-    }
-    for (auto &line : lines) {
-      if (line == msg) {
-        std::cout << msg << " is already in " << path << std::endl;
-        return;
+  // modify 'msg' directly if it's a directory -- this is why msg is mutable
+  if (std::filesystem::is_directory(msg) && msg.back() != '/') {
+    msg += "/";
+  }
+  std::fstream file(path, std::ios::in | std::ios::out | std::ios::app);
+  if (!file) {
+    printError("could not open " + path);
+    return;
+  }
+  // read file to an unordered_set for fast lookup
+  std::unordered_set<std::string> lines;
+  std::string line;
+  while (std::getline(file, line)) {
+    lines.insert(line);
+  }
+  for (auto &line : lines) {
+    if (line == msg) {
+      std::cout << msg << " is already in " << path << std::endl;
+      return;
     }
   }
-    file.clear(); // clear error flags
-    file << msg << std::endl;
-    std::cout << "Added " << msg << " to " << path << std::endl;
+  file.clear(); // clear error flags
+  file << msg << std::endl;
+  std::cout << "Added " << msg << " to " << path << std::endl;
 }
 
 std::string getRelativePath(const std::string &from, const std::string &to) {
