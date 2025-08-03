@@ -91,7 +91,8 @@ std::string findGitDirectory(std::string &current_directory) {
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
-    printError("usage: $ gitignore path/to/thing/to/ignore");
+    // TODO: you should be able to ignore multiple files in one go ($ gitignore path/file1 path/file2 path/file3)
+    printError("usage (assuming gitignore is in $PATH): $ gitignore path/to/thing/to/ignore");
     return -1;
   }
   std::string current_directory = std::filesystem::current_path().string();
@@ -115,6 +116,7 @@ int main(int argc, char *argv[]) {
   if (chosen_git_dir.empty()) {
     return -1; // Error message already printed in findGitDirectory
   }
+
   std::string gitignore_file_path = chosen_git_dir + "/.gitignore";
   std::string relative_path = getRelativePath(chosen_git_dir, arg_abs_path);
   writeToFile(gitignore_file_path, relative_path);
