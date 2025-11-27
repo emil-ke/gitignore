@@ -14,7 +14,7 @@ bool isGitFolderInDir(const std::string &path) {
 }
 
 void writeToFile(const std::string &path, std::string &msg) {
-  // modify 'msg' directly if it's a directory -- this is why msg is mutable
+  // modify 'msg' directly if it's a directory -- this is why msg is mutable (could instead be a copy, but whatever)
   if (std::filesystem::is_directory(msg) && msg.back() != '/') {
     msg += "/";
   }
@@ -64,9 +64,12 @@ std::string askUserForChoice(const std::vector<std::string> &choices,
 }
 
 std::string findGitDirectory(std::string &current_directory) {
-  // TODO (?) maybe add flag to change to some other depth.
-  // Highly unlikely that user would be more than 60 directories deep though.
-  int parent_traversal_limit = 60;
+  // This limit is a bit arbitrary.
+	// It's highly unlikely that user would be more than 100 directories deep though.
+	// A directory tree is finite and therefore a loop that terminates at root
+	// an invariant; but still, I think this defensive limits is safer, in line
+	// with a kind of NASA style.
+  int parent_traversal_limit = 100;
 
   std::vector<std::string> git_dirs;
   while (parent_traversal_limit--) {
@@ -89,36 +92,46 @@ std::string findGitDirectory(std::string &current_directory) {
   return askUserForChoice(git_dirs, "Select the .git directory to add to: ");
 }
 
-int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    // TODO: you should be able to ignore multiple files in one go ($ gitignore path/file1 path/file2 path/file3)
-    printError("usage (assuming gitignore is in $PATH): $ gitignore path/to/thing/to/ignore");
-    return -1;
-  }
-  std::string current_directory = std::filesystem::current_path().string();
-  if (current_directory.empty()) {
-    return -1;
-  }
-  std::string arg_path = argv[1];
-  std::string arg_abs_path = std::filesystem::absolute(arg_path).string();
-  if (!std::filesystem::exists(arg_abs_path)) {
-    printError(arg_abs_path + " does not exist");
-    return -1;
-  }
-  if (isGitFolderInDir(current_directory)) {
-    std::string gitignore_file_path = current_directory + "/.gitignore";
-    std::string relative_path =
-        getRelativePath(current_directory, arg_abs_path);
-    writeToFile(gitignore_file_path, relative_path);
-    return 0;
-  }
-  std::string chosen_git_dir = findGitDirectory(current_directory);
-  if (chosen_git_dir.empty()) {
-    return -1; // Error message already printed in findGitDirectory
-  }
+int processPath(const std::string &path, const std::string &git_dir) {
+    std::string abs_path = std::filesystem::absolute(path).string();
+    if (!std::filesystem::exists(abs_path)) {
+        printError(abs_path + " does not exist");
+        return -1;
+    }
 
-  std::string gitignore_file_path = chosen_git_dir + "/.gitignore";
-  std::string relative_path = getRelativePath(chosen_git_dir, arg_abs_path);
-  writeToFile(gitignore_file_path, relative_path);
-  return 0;
+    std::string gitignore_file_path = git_dir + "/.gitignore";
+    std::string relative_path = getRelativePath(git_dir, abs_path);
+    writeToFile(gitignore_file_path, relative_path);
+
+    return 0;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printError("usage (assuming gitignore is in $PATH): $ gitignore path1 [path2 ...]");
+        return -1;
+    }
+    std::string current_directory = std::filesystem::current_path().string();
+    if (current_directory.empty()) {
+        return -1;
+    }
+    std::string git_dir;
+    // if already inside a git repo, no need to search up.
+    if (isGitFolderInDir(current_directory)) {
+        git_dir = current_directory;
+    } else {
+        git_dir = findGitDirectory(current_directory);
+        if (git_dir.empty()) {
+            return -1; // error already printed
+        }
+    }
+    // process each arg
+    int overall_status = 0;
+    for (int i = 1; i < argc; ++i) {
+        int status = processPath(argv[i], git_dir);
+        if (status != 0) {
+            overall_status = status; // record failure but continue processing others
+        }
+    }
+    return overall_status;
 }
