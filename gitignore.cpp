@@ -64,12 +64,12 @@ std::string askUserForChoice(const std::vector<std::string> &choices,
 }
 
 std::string findGitDirectory(std::string &current_directory) {
-  // This limit is a bit arbitrary.
-	// It's highly unlikely that user would be more than 100 directories deep though.
+  // This limit is a bit arbitrary and cute.
+	// It's incredibly unlikely that a user would be more than 1000 directories deep, though.
 	// A directory tree is finite and therefore a loop that terminates at root
-	// an invariant; but still, I think this defensive limits is safer, in line
+	// is an invariant; but still, I think this defensive limits is safer, in line
 	// with a kind of NASA style.
-  int parent_traversal_limit = 100;
+  int parent_traversal_limit = 1000;
 
   std::vector<std::string> git_dirs;
   while (parent_traversal_limit--) {
